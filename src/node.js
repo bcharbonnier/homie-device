@@ -38,13 +38,15 @@ export class HomieNode extends EventEmitter {
     // Let's advertise over MQTT all our properties
     mqttClient.publish(`${this.topic}/$type`, this.type, { retain: true });
 
-    let advertising = "";
+    let advertising = [];
     for (const property of Object.values(this.properties)) {
-      advertising = property.name;
+      const advertisingMessage = property.name;
 
       if (property.setter) {
-        advertising += ":settable";
+        advertisingMessage += ":settable";
       }
+
+      advertising.push(advertisingMessage);
     }
     mqttClient.publish(`${this.topic}/$properties`, advertising.join(","), {
       retain: true

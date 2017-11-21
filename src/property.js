@@ -37,7 +37,7 @@ export class HomieProperty extends EventEmitter {
   }
 
   send(value) {
-    const { mqttClient } = this.node.device.mqttClient;
+    const { mqttClient } = this.node.device;
     mqttClient.publish(this.topic, value, { retain: this.retained });
     return this;
   }

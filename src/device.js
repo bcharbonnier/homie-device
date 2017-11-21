@@ -53,7 +53,14 @@ export class HomieDevice extends EventEmitter {
     this.onMessage = this.onMessage.bind(this);
     this.onStats = this.onStats.bind(this);
 
-    this.config = { ...DEFAULT_CONFIG, ...config };
+    this.config = {
+      ...DEFAULT_CONFIG,
+      ...config,
+      mqtt: {
+        ...DEFAULT_CONFIG.mqtt,
+        ...config.mqtt
+      }
+    };
 
     this.topic = `${this.config.mqtt.base_topic}/${this.config.device_id}`;
   }
@@ -62,11 +69,15 @@ export class HomieDevice extends EventEmitter {
     return (this.nodes[name] = new HomieNode(this, name, type));
   }
 
+  get settings() {
+    return this.config.settings || {};
+  }
+
   setup() {
     const options = {
       will: {
         topic: `${this.topic}/$online`,
-        payload: false,
+        payload: "false",
         qos: 0,
         retain: true
       }
@@ -116,6 +127,13 @@ export class HomieDevice extends EventEmitter {
     this.mqttClient.publish(
       `${this.topic}/$implementation/version`,
       IMPLEMENTATION_VERSION,
+      {
+        retain: true
+      }
+    );
+    this.mqttClient.publish(
+      `${this.topic}/$implementation/config`,
+      JSON.stringify(this.config),
       {
         retain: true
       }

@@ -1,37 +1,30 @@
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.HomieProperty = undefined;
-
-var _events = require("events");
-
-class HomieProperty extends _events.EventEmitter {
-
-  /** Setter handler */
-
+import { EventEmitter } from "events";
+export class HomieProperty extends EventEmitter {
+  /** Name of the property */
+  name;
 
   /** Parent Homie node */
-  constructor(node, name) {
-    super();
-    this.retained = false;
-    this.node = node;
-    this.name = name;
+  node;
 
-    this.topic = `${node.topic}/${this.name}`;
-  }
+  /** MQTT topic corresponding to this property */
+  topic;
+
+  /** Setter handler */
+  setter;
 
   /**
    * MQTT retained value
    * default: false
    */
+  retained = false;
 
+  constructor(node, name) {
+    super();
+    this.node = node;
+    this.name = name;
 
-  /** MQTT topic corresponding to this property */
-
-  /** Name of the property */
-
+    this.topic = `${node.topic}/${this.name}`;
+  }
 
   settable(setter) {
     this.setter = setter.bind(this);
@@ -49,4 +42,3 @@ class HomieProperty extends _events.EventEmitter {
     return this;
   }
 }
-exports.HomieProperty = HomieProperty;

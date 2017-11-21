@@ -1,23 +1,23 @@
-"use strict";
+import { EventEmitter } from "events";
+import { HomieProperty } from "./property";
 
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.HomieNode = undefined;
-
-var _events = require("events");
-
-var _property = require("./property");
-
-class HomieNode extends _events.EventEmitter {
-
-  /** MQTT topic corresponding to this node */
-
+export class HomieNode extends EventEmitter {
+  /** Name of the node */
+  name;
 
   /** Type of the node */
+  type;
+
+  /** Parent Homie device */
+  device;
+
+  /** MQTT topic corresponding to this node */
+  topic;
+
+  properties = {};
+
   constructor(device, name, type) {
     super();
-    this.properties = {};
     this.device = device;
     this.name = name;
     this.type = type;
@@ -25,13 +25,11 @@ class HomieNode extends _events.EventEmitter {
     this.topic = `${this.device.topic}/${this.name}`;
   }
 
-  /** Parent Homie device */
-
-  /** Name of the node */
-
-
   advertise(propertyName) {
-    return this.properties[propertyName] = new _property.HomieProperty(this, propertyName);
+    return (this.properties[propertyName] = new HomieProperty(
+      this,
+      propertyName
+    ));
   }
 
   onConnect() {
@@ -62,4 +60,3 @@ class HomieNode extends _events.EventEmitter {
     return this.properties[propertyName];
   }
 }
-exports.HomieNode = HomieNode;

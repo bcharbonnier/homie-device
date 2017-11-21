@@ -1,23 +1,8 @@
-"use strict";
+import { EventEmitter } from "events";
+import mqtt from "mqtt";
 
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.HomieDevice = undefined;
-
-var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
-
-var _events = require("events");
-
-var _mqtt = require("mqtt");
-
-var _mqtt2 = _interopRequireDefault(_mqtt);
-
-var _node = require("./node");
-
-var _network = require("./utils/network");
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+import { HomieNode } from "./node";
+import { getMacAddress, getIPAddress } from "./utils/network";
 
 const HOMIE_VERSION = "2.0.0";
 const IMPLEMENTATION = "javascript";
@@ -25,9 +10,9 @@ const IMPLEMENTATION_VERSION = "1.0";
 const BASE_TOPIC = "homie";
 
 /* IP of the device on the local network */
-const LOCAL_IP = (0, _network.getIPAddress)();
+const LOCAL_IP = getIPAddress();
 /* MAC_ADDRESS of the device */
-const MAC_ADDRESS = (0, _network.getMacAddress)();
+const MAC_ADDRESS = getMacAddress();
 
 const DEFAULT_CONFIG = {
   device_id: MAC_ADDRESS.split(":").join(""),
@@ -38,43 +23,43 @@ const DEFAULT_CONFIG = {
   }
 };
 
-class HomieDevice extends _events.EventEmitter {
-
-  /** Used to compute the time elapsed in seconds since the boot of the device */
-
-
-  /** Firmware information */
-
+export class HomieDevice extends EventEmitter {
+  /** MQTT client */
+  mqttClient;
 
   /** Interval pointer use to publish stats */
-  constructor(config) {
-    super();
-
-    this.statsInterval = 60;
-    this.firmwareName = null;
-    this.firmwareVersion = null;
-    this.startTime = Date.now();
-    this.nodes = {};
-    this.onConnect = this.onConnect.bind(this);
-    this.onDisconnect = this.onDisconnect.bind(this);
-    this.onMessage = this.onMessage.bind(this);
-    this.onStats = this.onStats.bind(this);
-
-    this.config = _extends({}, DEFAULT_CONFIG, config);
-
-    this.topic = `${this.config.mqtt.base_topic}/${this.config.device_id}`;
-  }
+  interval;
 
   /**
    * Interval at which stats are published
    * default: 60s
    */
+  statsInterval = 60;
 
-  /** MQTT client */
+  /** Firmware information */
+  firmwareName = null;
+  firmwareVersion = null;
 
+  /** Used to compute the time elapsed in seconds since the boot of the device */
+  startTime = Date.now();
+
+  nodes = {};
+
+  constructor(config) {
+    super();
+
+    this.onConnect = this.onConnect.bind(this);
+    this.onDisconnect = this.onDisconnect.bind(this);
+    this.onMessage = this.onMessage.bind(this);
+    this.onStats = this.onStats.bind(this);
+
+    this.config = { ...DEFAULT_CONFIG, ...config };
+
+    this.topic = `${this.config.mqtt.base_topic}/${this.config.device_id}`;
+  }
 
   node(name, type) {
-    return this.nodes[name] = new _node.HomieNode(this, name, type);
+    return (this.nodes[name] = new HomieNode(this, name, type));
   }
 
   setup() {
@@ -95,13 +80,15 @@ class HomieDevice extends _events.EventEmitter {
     }
 
     if (this.firmwareName == null && this.firmwareVersion == null) {
-      console.error("You must call `device.setFirmware()` before calling `device.setup()`");
+      console.error(
+        "You must call `device.setFirmware()` before calling `device.setup()`"
+      );
       process.exit(1);
     }
 
     const mqttServer = `${this.config.mqtt.host}:${this.config.mqtt.port}`;
 
-    this.mqttClient = _mqtt2.default.connect(`mqtt://${mqttServer}`, options);
+    this.mqttClient = mqtt.connect(`mqtt://${mqttServer}`, options);
 
     this.mqttClient.on("connect", this.onConnect);
     this.mqttClient.on("close", this.onDisconnect);
@@ -126,9 +113,13 @@ class HomieDevice extends _events.EventEmitter {
     this.mqttClient.publish(`${this.topic}/$implementation`, IMPLEMENTATION, {
       retain: true
     });
-    this.mqttClient.publish(`${this.topic}/$implementation/version`, IMPLEMENTATION_VERSION, {
-      retain: true
-    });
+    this.mqttClient.publish(
+      `${this.topic}/$implementation/version`,
+      IMPLEMENTATION_VERSION,
+      {
+        retain: true
+      }
+    );
 
     this.mqttClient.publish(`${this.topic}/$name`, this.config.name, {
       retain: true
@@ -149,7 +140,11 @@ class HomieDevice extends _events.EventEmitter {
       retain: true
     });
 
-    this.mqttClient.publish(`${this.topic}/$stats/interval`, `${this.statsInterval}`, { retain: true });
+    this.mqttClient.publish(
+      `${this.topic}/$stats/interval`,
+      `${this.statsInterval}`,
+      { retain: true }
+    );
 
     // Let's advertise over MQTT all our nodes
     for (const node of Object.values(this.nodes)) {
@@ -162,7 +157,10 @@ class HomieDevice extends _events.EventEmitter {
     this.emit("connected");
 
     this.onStats();
-    this.interval = setInterval(() => this.onStats(), this.statsInterval * 1000);
+    this.interval = setInterval(
+      () => this.onStats(),
+      this.statsInterval * 1000
+    );
   }
 
   onDisconnect() {
@@ -175,9 +173,13 @@ class HomieDevice extends _events.EventEmitter {
 
   onStats() {
     const uptime = (Date.now() - this.startTime) / 1000;
-    this.mqttClient.publish(`${this.topic}/$stats/uptime`, Math.max(Math.round(uptime), 0).toString(), {
-      retain: false
-    });
+    this.mqttClient.publish(
+      `${this.topic}/$stats/uptime`,
+      Math.max(Math.round(uptime), 0).toString(),
+      {
+        retain: false
+      }
+    );
     this.emit("stats", uptime);
   }
 
@@ -196,4 +198,3 @@ class HomieDevice extends _events.EventEmitter {
     this.firmwareVersion = version;
   }
 }
-exports.HomieDevice = HomieDevice;

@@ -1,7 +1,7 @@
 {
   "name": "homie-device",
   "version": "1.0.0",
-  "description": "",
+  "description": "NodeJS implementation of Homie IOT convention",
   "main": "src/index.js",
   "bin": {
     "homie-node": "./bin/index.js"

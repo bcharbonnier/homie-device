@@ -3,8 +3,14 @@
   "version": "1.0.0",
   "description": "",
   "main": "lib/index.js",
+  "bin": {
+    "homie-node": "./bin/index.js"
+  },
   "dependencies": {
-    "mqtt": "2.14.0"
+    "chalk": "2.3.0",
+    "commander": "2.11.0",
+    "mqtt": "2.14.0",
+    "prompt": "1.0.0"
   },
   "devDependencies": {
     "babel-cli": "6.26.0",

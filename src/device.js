@@ -1,7 +1,10 @@
 import { EventEmitter } from "events";
+
 import mqtt from "mqtt";
+import chalk from "chalk";
 
 import { HomieNode } from "./node";
+import { HomieSetting } from "./setting";
 import { getMacAddress, getIPAddress } from "./utils/network";
 
 const HOMIE_VERSION = "2.0.0";
@@ -21,6 +24,10 @@ const DEFAULT_CONFIG = {
     port: 1883,
     base_topic: BASE_TOPIC
   }
+};
+export const RUNNING_MODE = {
+  CONFIGURATION: "config",
+  STANDARD: "standard"
 };
 
 export class HomieDevice extends EventEmitter {
@@ -44,8 +51,11 @@ export class HomieDevice extends EventEmitter {
   startTime = Date.now();
 
   nodes = {};
+  settings = {};
 
-  constructor(config) {
+  runningMode = RUNNING_MODE.STANDARD;
+
+  constructor(config = {}) {
     super();
 
     this.onConnect = this.onConnect.bind(this);
@@ -69,46 +79,68 @@ export class HomieDevice extends EventEmitter {
     return (this.nodes[name] = new HomieNode(this, name, type));
   }
 
-  get settings() {
-    return this.config.settings || {};
+  setting(name, description, type) {
+    return (this.settings[name] = new HomieSetting(
+      this,
+      name,
+      description,
+      type
+    ));
   }
 
   setup() {
-    const options = {
-      will: {
-        topic: `${this.topic}/$online`,
-        payload: "false",
-        qos: 0,
-        retain: true
-      }
-    };
+    // Startup check, that Homie devices should be started from the CLI
+    if (!process.env.HOMIE_RUNNING_MODE) {
+      console.error(`
+Starting your Homie device should be done using homie-node CLI.
 
-    if (this.config.mqtt.username) {
-      options["username"] = this.config.mqtt.username;
-      if (this.config.mqtt.password) {
-        options["password"] = this.config.mqtt.password;
-      }
-    }
-
-    if (this.firmwareName == null && this.firmwareVersion == null) {
-      console.error(
-        "You must call `device.setFirmware()` before calling `device.setup()`"
-      );
+${chalk.dim("Command to execute:")}
+  npx homie-node start`);
       process.exit(1);
     }
 
-    const mqttServer = `${this.config.mqtt.host}:${this.config.mqtt.port}`;
+    if (this.runningMode === RUNNING_MODE.STANDARD) {
+      const options = {
+        will: {
+          topic: `${this.topic}/$online`,
+          payload: "false",
+          qos: 0,
+          retain: true
+        }
+      };
 
-    this.mqttClient = mqtt.connect(`mqtt://${mqttServer}`, options);
+      if (this.config.mqtt.username) {
+        options["username"] = this.config.mqtt.username;
+        if (this.config.mqtt.password) {
+          options["password"] = this.config.mqtt.password;
+        }
+      }
 
-    this.mqttClient.on("connect", this.onConnect);
-    this.mqttClient.on("close", this.onDisconnect);
-    this.mqttClient.on("message", this.onMessage);
+      if (this.firmwareName == null && this.firmwareVersion == null) {
+        console.error(
+          "You must call `Homie.setFirmware()` before calling `Homie.setup()`"
+        );
+        process.exit(1);
+      }
 
-    this.mqttClient.subscribe(`${this.topic}/#`);
-    this.mqttClient.subscribe(`${this.config.mqtt.base_topic}/$broadcast/#`);
+      const mqttServer = `${this.config.mqtt.host}:${this.config.mqtt.port}`;
 
-    console.log(`Connected Homie ${this.topic} to ${mqttServer}`);
+      this.mqttClient = mqtt.connect(`mqtt://${mqttServer}`, options);
+
+      this.mqttClient.on("connect", this.onConnect);
+      this.mqttClient.on("close", this.onDisconnect);
+      this.mqttClient.on("message", this.onMessage);
+
+      this.mqttClient.subscribe(`${this.topic}/#`);
+      this.mqttClient.subscribe(`${this.config.mqtt.base_topic}/$broadcast/#`);
+
+      console.log(`Connected Homie ${this.topic} to ${mqttServer}`);
+    } else {
+      if (!Object.values(RUNNING_MODE).includes(this.runningMode)) {
+        console.error(`Unknown running mode ${this.runningMode}`);
+        process.exit(1);
+      }
+    }
   }
 
   tearDown() {

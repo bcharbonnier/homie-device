@@ -1,12 +1,12 @@
-import { networkInterfaces } from "os";
+const { networkInterfaces } = require("os");
 
 const INTERFACES = networkInterfaces();
 const EN0_IPV4 = INTERFACES["en0"].filter(itf => itf.family === "IPv4")[0];
 
-export function getMacAddress() {
+exports.getMacAddress = function() {
   return EN0_IPV4["mac"];
-}
+};
 
-export function getIPAddress() {
+exports.getIPAddress = function() {
   return EN0_IPV4["address"];
-}
+};

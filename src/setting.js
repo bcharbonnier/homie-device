@@ -1,12 +1,12 @@
-export class HomieSetting {
-  value;
-  defaultValue;
-
+exports.HomieSetting = class HomieSetting {
   constructor(device, name, description, type) {
     this.device = device;
     this.name = name;
     this.description = description;
     this.type = type;
+
+    this.value = null;
+    this.defaultValue = null;
   }
 
   setDefaultValue(value) {
@@ -28,4 +28,8 @@ export class HomieSetting {
       this.value = value;
     }
   }
-}
+
+  wasProvided() {
+    return this.defaultValue && !this.value;
+  }
+};

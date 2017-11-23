@@ -1,29 +1,23 @@
-import { EventEmitter } from "events";
-export class HomieProperty extends EventEmitter {
-  /** Name of the property */
-  name;
-
-  /** Parent Homie node */
-  node;
-
-  /** MQTT topic corresponding to this property */
-  topic;
-
-  /** Setter handler */
-  setter;
-
-  /**
-   * MQTT retained value
-   * default: false
-   */
-  retained = false;
-
+exports.HomieProperty = class HomieProperty {
   constructor(node, name) {
-    super();
+    /** Parent node */
     this.node = node;
+
+    /** Name of the property */
     this.name = name;
 
-    this.topic = `${node.topic}/${this.name}`;
+    /** Setter handler */
+    this.setter = null;
+
+    /**
+     * MQTT retained value
+     */
+    this.retained = false;
+  }
+
+  onConnect() {
+    /** MQTT topic corresponding to this property */
+    this.topic = `${this.node.topic}/${this.name}`;
   }
 
   settable(setter) {
@@ -31,14 +25,15 @@ export class HomieProperty extends EventEmitter {
     return this;
   }
 
-  setRetained(retain) {
-    this.retain = retain;
+  setRetained(retained) {
+    this.retained = retained;
     return this;
   }
 
   send(value) {
     const { mqttClient } = this.node.device;
     mqttClient.publish(this.topic, value, { retain: this.retained });
+    this.retained = false;
     return this;
   }
-}
+};

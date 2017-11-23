@@ -1,85 +1,79 @@
-import { EventEmitter } from "events";
+const { EventEmitter } = require("events");
 
-import mqtt from "mqtt";
-import chalk from "chalk";
+const mqtt = require("mqtt");
+const chalk = require("chalk");
 
-import { HomieNode } from "./node";
-import { HomieSetting } from "./setting";
-import { getMacAddress, getIPAddress } from "./utils/network";
+const { HomieNode } = require("./node");
+const { HomieSetting } = require("./setting");
+const { getMacAddress, getIPAddress } = require("./utils/network");
 
 const HOMIE_VERSION = "2.0.0";
 const IMPLEMENTATION = "javascript";
 const IMPLEMENTATION_VERSION = "1.0";
-const BASE_TOPIC = "homie";
 
 /* IP of the device on the local network */
 const LOCAL_IP = getIPAddress();
 /* MAC_ADDRESS of the device */
 const MAC_ADDRESS = getMacAddress();
 
-const DEFAULT_CONFIG = {
-  device_id: MAC_ADDRESS.split(":").join(""),
-  mqtt: {
-    host: "localhost",
-    port: 1883,
-    base_topic: BASE_TOPIC
-  }
-};
-export const RUNNING_MODE = {
+const RUNNING_MODE = (exports.RUNNING_MODE = {
   CONFIGURATION: "config",
   STANDARD: "standard"
-};
+});
 
-export class HomieDevice extends EventEmitter {
-  /** MQTT client */
-  mqttClient;
-
-  /** Interval pointer use to publish stats */
-  interval;
-
-  /**
-   * Interval at which stats are published
-   * default: 60s
-   */
-  statsInterval = 60;
-
-  /** Firmware information */
-  firmwareName = null;
-  firmwareVersion = null;
-
-  /** Used to compute the time elapsed in seconds since the boot of the device */
-  startTime = Date.now();
-
-  nodes = {};
-  settings = {};
-
-  runningMode = RUNNING_MODE.STANDARD;
-
-  constructor(config = {}) {
+exports.HomieDevice = class HomieDevice extends EventEmitter {
+  constructor() {
     super();
+
+    /** MQTT client */
+    this.mqttClient = null;
+
+    /** Interval pointer use to publish stats */
+    this.interval = null;
+
+    /**
+     * Interval at which stats are published
+     * default: 60s
+     */
+    this.statsInterval = 60;
+
+    /** Firmware information */
+    this.firmwareName = null;
+    this.firmwareVersion = null;
+
+    /** Used to compute the time elapsed in seconds since the boot of the device */
+    this.startTime = Date.now();
+
+    this.nodes = {};
+    this.settings = {};
+
+    this.runningMode = RUNNING_MODE.STANDARD;
+
+    this.hasStarted = false;
 
     this.onConnect = this.onConnect.bind(this);
     this.onDisconnect = this.onDisconnect.bind(this);
     this.onMessage = this.onMessage.bind(this);
     this.onStats = this.onStats.bind(this);
-
-    this.config = {
-      ...DEFAULT_CONFIG,
-      ...config,
-      mqtt: {
-        ...DEFAULT_CONFIG.mqtt,
-        ...config.mqtt
-      }
-    };
-
-    this.topic = `${this.config.mqtt.base_topic}/${this.config.device_id}`;
   }
 
   node(name, type) {
+    if (this.hasStarted) {
+      console.error(
+        chalk.red("You must call HomieNode() before Homie.setup()")
+      );
+      process.exit(1);
+    }
     return (this.nodes[name] = new HomieNode(this, name, type));
   }
 
   setting(name, description, type) {
+    if (this.hasStarted) {
+      console.error(
+        chalk.red("You must call HomieSetting() before Homie.setup()")
+      );
+      process.exit(1);
+    }
     return (this.settings[name] = new HomieSetting(
       this,
       name,
@@ -88,18 +82,36 @@ export class HomieDevice extends EventEmitter {
     ));
   }
 
+  log(...messages) {
+    const prefix = `[${this.config.device_id}]`;
+    console.log(
+      `${chalk.grey(new Date().toISOString())} ${chalk.cyan(
+        prefix
+      )} ${messages.join(" ")}`
+    );
+  }
+
   setup() {
-    // Startup check, that Homie devices should be started from the CLI
+    // Startup check, that Homie devices should be started require(the CLI
     if (!process.env.HOMIE_RUNNING_MODE) {
       console.error(`
-Starting your Homie device should be done using homie-node CLI.
+Starting your Homie device should be done using homie-node CLI using this command
 
-${chalk.dim("Command to execute:")}
-  npx homie-node start`);
+  npx homie-node start
+  `);
       process.exit(1);
     }
 
     if (this.runningMode === RUNNING_MODE.STANDARD) {
+      this.topic = `${this.config.mqtt.base_topic}/${this.config.device_id}`;
+
+      // Settings value initialization
+      Object.values(this.settings).forEach(setting => {
+        if (!setting.defaultValue) {
+          setting.value = this.config.settings[setting.name];
+        }
+      });
+
       const options = {
         will: {
           topic: `${this.topic}/$online`,
@@ -118,7 +130,9 @@ ${chalk.dim("Command to execute:")}
 
       if (this.firmwareName == null && this.firmwareVersion == null) {
         console.error(
-          "You must call `Homie.setFirmware()` before calling `Homie.setup()`"
+          chalk.red(
+            "You must call `Homie.setFirmware()` before calling `Homie.setup()`"
+          )
         );
         process.exit(1);
       }
@@ -134,10 +148,12 @@ ${chalk.dim("Command to execute:")}
       this.mqttClient.subscribe(`${this.topic}/#`);
       this.mqttClient.subscribe(`${this.config.mqtt.base_topic}/$broadcast/#`);
 
-      console.log(`Connected Homie ${this.topic} to ${mqttServer}`);
+      this.hasStarted = true;
+      this.log("Starting...");
+      this.log(`Homie device connected to MQTT broker on ${mqttServer}`);
     } else {
       if (!Object.values(RUNNING_MODE).includes(this.runningMode)) {
-        console.error(`Unknown running mode ${this.runningMode}`);
+        console.error(chalk.red(`Unknown running mode ${this.runningMode}`));
         process.exit(1);
       }
     }
@@ -201,7 +217,7 @@ ${chalk.dim("Command to execute:")}
       node.onConnect();
     }
 
-    // Last, we are $online
+    // Finally, let's go $online!
     this.mqttClient.publish(`${this.topic}/$online`, "true", { retain: true });
 
     this.emit("connected");
@@ -240,11 +256,43 @@ ${chalk.dim("Command to execute:")}
       this.emit("broadcast", deviceTopic, message);
     }
 
+    if (
+      deviceTopic[0] == "$implementation" &&
+      deviceTopic[1] == "reset" &&
+      message.toString() == "true"
+    ) {
+      this.log("Reset command received. Restarting now...");
+      process.send({ action: "reset" });
+      return;
+    }
+
     this.emit("message", deviceTopic, message);
+    // Emit to listeners of the specific device topic
+    this.emit(`message:${deviceTopic}`, message);
+
+    const [nodeName, propName, set] = deviceTopic;
+    if (deviceId === this.config.device_id && "set" === set) {
+      const node = this.nodes[nodeName];
+      if (node) {
+        const range = {
+          isRange: false,
+          index: 0
+        };
+        const property = node.properties[propName];
+
+        if (
+          property &&
+          property.setter &&
+          typeof property.setter === "function"
+        ) {
+          property.setter(range, message);
+        }
+      }
+    }
   }
 
   setFirmware(name, version) {
     this.firmwareName = name;
     this.firmwareVersion = version;
   }
-}
+};

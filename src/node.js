@@ -1,28 +1,20 @@
-import { EventEmitter } from "events";
-import { HomieProperty } from "./property";
+const { EventEmitter } = require("events");
+const { HomieProperty } = require("./property");
 
-export class HomieNode extends EventEmitter {
-  /** Name of the node */
-  name;
-
-  /** Type of the node */
-  type;
-
-  /** Parent Homie device */
-  device;
-
-  /** MQTT topic corresponding to this node */
-  topic;
-
-  properties = {};
-
+exports.HomieNode = class HomieNode extends EventEmitter {
   constructor(device, name, type) {
     super();
+
+    /** Parent Homie device */
     this.device = device;
+
+    /** Name of the node */
     this.name = name;
+
+    /** Type of the node */
     this.type = type;
 
-    this.topic = `${this.device.topic}/${this.name}`;
+    this.properties = {};
   }
 
   advertise(propertyName) {
@@ -33,7 +25,10 @@ export class HomieNode extends EventEmitter {
   }
 
   onConnect() {
-    const { mqttClient } = this.device;
+    const { mqttClient, topic } = this.device;
+
+    /** MQTT topic corresponding to this node */
+    this.topic = `${topic}/${this.name}`;
 
     // Let's advertise over MQTT all our properties
     mqttClient.publish(`${this.topic}/$type`, this.type, { retain: true });
@@ -47,6 +42,8 @@ export class HomieNode extends EventEmitter {
       }
 
       advertising.push(advertisingMessage);
+
+      property.onConnect();
     }
     mqttClient.publish(`${this.topic}/$properties`, advertising.join(","), {
       retain: true
@@ -61,4 +58,4 @@ export class HomieNode extends EventEmitter {
   setProperty(propertyName) {
     return this.properties[propertyName];
   }
-}
+};

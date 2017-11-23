@@ -37,7 +37,13 @@ exports.HomieDevice = class HomieDevice extends EventEmitter {
      */
     this.statsInterval = 60;
 
-    /** Firmware information */
+    /**
+     * Firmware information
+     *
+     * By default, this information is dynamically retrieved
+     * from package.json file at startup time,
+     * reading name and version.
+     * */
     this.firmwareName = null;
     this.firmwareVersion = null;
 
@@ -123,15 +129,6 @@ Starting your Homie device should be done using homie-node CLI using this comman
         if (this.config.mqtt.password) {
           options["password"] = this.config.mqtt.password;
         }
-      }
-
-      if (this.firmwareName == null && this.firmwareVersion == null) {
-        console.error(
-          chalk.red(
-            "You must call `Homie.setFirmware()` before calling `Homie.setup()`"
-          )
-        );
-        process.exit(1);
       }
 
       const mqttServer = `${this.config.mqtt.host}:${this.config.mqtt.port}`;
@@ -294,10 +291,5 @@ Starting your Homie device should be done using homie-node CLI using this comman
         }
       }
     }
-  }
-
-  setFirmware(name, version) {
-    this.firmwareName = name;
-    this.firmwareVersion = version;
   }
 };

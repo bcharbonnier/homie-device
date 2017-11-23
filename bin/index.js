@@ -175,9 +175,16 @@ program
     }
 
     function handler({ action }) {
-      if (action === "reset") {
-        child.kill();
-        child = start(handler);
+      switch (action) {
+        case "reset":
+          child.kill();
+          child = start(handler);
+          break;
+        case "stop":
+          child.kill();
+          break;
+        default:
+          break;
       }
     }
 

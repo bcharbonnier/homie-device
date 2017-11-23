@@ -181,9 +181,14 @@ Starting your Homie device should be done using homie-node CLI using this comman
         retain: true
       }
     );
+
+    // Configuration, deep copy & let's remove username & password
+    const config = JSON.parse(JSON.stringify(this.config));
+    delete config.mqtt.username;
+    delete config.mqtt.password;
     this.mqttClient.publish(
       `${this.topic}/$implementation/config`,
-      JSON.stringify(this.config),
+      JSON.stringify(config),
       {
         retain: true
       }

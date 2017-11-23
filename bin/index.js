@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-const { spawn } = require("child_process");
+const { fork } = require("child_process");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -19,8 +19,10 @@ const DATA_FOLDER_HOMIE = "homie";
 const DATA_FOLDER = path.join(CWD, DATA_FOLDER_DATA, DATA_FOLDER_HOMIE);
 const CONFIG_FILE = path.join(DATA_FOLDER, "config.json");
 
+const DEVICE_PACKAGE = require(path.join(CWD, "package.json"));
+
 const DEFAULT_CONFIG = {
-  device_id: `homie-${getMacAddress().replace(/:/g, "")}`,
+  device_id: `${DEVICE_PACKAGE.name}-${getMacAddress().replace(/:/g, "")}`,
   name: os.hostname(),
   mqtt: {
     host: "127.0.0.1",
@@ -95,6 +97,8 @@ const MQTT_SCHEMA = {
     },
     base_topic: {
       description: "MQTT base topic",
+      type: "string",
+      pattern: /^[a-z\-]+$/,
       default: DEFAULT_CONFIG.mqtt.base_topic
     }
   }
@@ -115,9 +119,9 @@ function prepareSettingsSchema(settings) {
             ? JSON.stringify(setting.defaultValue)
             : setting.defaultValue;
       } else {
-        schema.properties[
+        schema.properties[setting.name].message = `${
           setting.name
-        ].message = `${setting.name} is required, you must provide a value`;
+        } is required, you must provide a value`;
       }
 
       if (setting.type !== "json") {
@@ -143,7 +147,9 @@ function filterConfig(id, mqtt, settings) {
 
 program
   .version(pkg.version)
-  .description("Command line tool to manage local Homie device");
+  .description(
+    "Command line tool to manage local Homie device(s) written in JavaScript and running on NodeJS"
+  );
 
 program
   .command("start")
@@ -158,26 +164,32 @@ program
 
     process.env.HOMIE_RUNNING_MODE = RUNNING_MODE.STANDARD;
 
-    function start() {
-      return spawn("node", ["index.js"], {
+    let child;
+    function start(handler) {
+      const inst = fork(path.join(CWD, "index.js"), {
         stdio: "inherit"
       });
+
+      inst.on("message", handler);
+      return inst;
     }
 
-    let child = start();
-
-    child.on("message", ({ action }) => {
+    function handler({ action }) {
       if (action === "reset") {
         child.kill();
-        child = start();
+        child = start(handler);
       }
-    });
+    }
+
+    child = start(handler);
   });
 
 program
   .command("config")
   .option("--force-reset", "Erase any existing configuration file")
-  .description("Configure your Homie device")
+  .description(
+    "Configure your Homie device by simply answering a few questions"
+  )
   .action(env => {
     if (hasConfigFile()) {
       if (env.forceReset) {

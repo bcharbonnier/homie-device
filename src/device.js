@@ -41,9 +41,6 @@ exports.HomieDevice = class HomieDevice extends EventEmitter {
     this.firmwareName = null;
     this.firmwareVersion = null;
 
-    /** Used to compute the time elapsed in seconds since the boot of the device */
-    this.startTime = Date.now();
-
     this.nodes = {};
     this.settings = {};
 
@@ -149,8 +146,8 @@ Starting your Homie device should be done using homie-node CLI using this comman
       this.mqttClient.subscribe(`${this.config.mqtt.base_topic}/$broadcast/#`);
 
       this.hasStarted = true;
-      this.log("Starting...");
-      this.log(`Homie device connected to MQTT broker on ${mqttServer}`);
+      this.log(`Starting Homie device ${LOCAL_IP}, with PID ${process.pid}`);
+      this.log(`Connected to MQTT broker on ${mqttServer}`);
     } else {
       if (!Object.values(RUNNING_MODE).includes(this.runningMode)) {
         console.error(chalk.red(`Unknown running mode ${this.runningMode}`));
@@ -160,6 +157,7 @@ Starting your Homie device should be done using homie-node CLI using this comman
   }
 
   tearDown() {
+    this.log(`Shutting down Homie device`);
     this.mqttClient.publish(`${this.topic}/$online`, "false");
     this.mqttClient.end();
   }
@@ -175,6 +173,13 @@ Starting your Homie device should be done using homie-node CLI using this comman
     this.mqttClient.publish(
       `${this.topic}/$implementation/version`,
       IMPLEMENTATION_VERSION,
+      {
+        retain: true
+      }
+    );
+    this.mqttClient.publish(
+      `${this.topic}/$implementation/platform`,
+      process.platform,
       {
         retain: true
       }
@@ -238,15 +243,15 @@ Starting your Homie device should be done using homie-node CLI using this comman
   }
 
   onStats() {
-    const uptime = (Date.now() - this.startTime) / 1000;
-    this.mqttClient.publish(
-      `${this.topic}/$stats/uptime`,
-      Math.max(Math.round(uptime), 0).toString(),
-      {
-        retain: false
-      }
-    );
-    this.emit("stats", uptime);
+    const uptime = Math.round(process.uptime());
+    const { rss } = process.memoryUsage();
+    this.mqttClient.publish(`${this.topic}/$stats/uptime`, uptime.toString(), {
+      retain: false
+    });
+    this.mqttClient.publish(`${this.topic}/$stats/memory`, rss.toString(), {
+      retain: false
+    });
+    this.emit("stats", { uptime, mem: rss });
   }
 
   onMessage(topic, message) {

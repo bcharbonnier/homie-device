@@ -243,7 +243,7 @@ Starting your Homie device should be done using homie-node CLI using this comman
 
   onDisconnect() {
     this.interval = clearInterval(this.interval);
-    for (const node of this.nodes) {
+    for (const node of Object.values(this.nodes)) {
       node.onDisconnect();
     }
     this.emit("disconnected");

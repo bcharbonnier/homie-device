@@ -159,6 +159,11 @@ Starting your Homie device should be done using homie-node CLI using this comman
     this.mqttClient.end();
   }
 
+  reset() {
+    this.log(`Reset command. Restarting device now...`);
+    process.send({ action: "reset" });
+  }
+
   onConnect() {
     // Let's advertise over MQTT all our attributes
     this.mqttClient.publish(`${this.topic}/$homie`, HOMIE_VERSION, {

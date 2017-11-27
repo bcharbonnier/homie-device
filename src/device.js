@@ -47,6 +47,12 @@ exports.HomieDevice = class HomieDevice extends EventEmitter {
     this.firmwareName = null;
     this.firmwareVersion = null;
 
+    /**
+     * Unique handler that will handle every changed settable
+     * properties for all nodes
+     */
+    this.globalInputHandler = null;
+
     this.nodes = {};
     this.settings = {};
 
@@ -60,14 +66,14 @@ exports.HomieDevice = class HomieDevice extends EventEmitter {
     this.onStats = this.onStats.bind(this);
   }
 
-  node(name, type) {
+  node(name, type, handler) {
     if (this.hasStarted) {
       console.error(
         chalk.red("You must call HomieNode() before Homie.setup()")
       );
       process.exit(1);
     }
-    return (this.nodes[name] = new HomieNode(this, name, type));
+    return (this.nodes[name] = new HomieNode(this, name, type, handler));
   }
 
   setting(name, description, type) {
@@ -162,6 +168,10 @@ Starting your Homie device should be done using homie-node CLI using this comman
   reset() {
     this.log(`Reset command. Restarting device now...`);
     process.send({ action: "reset" });
+  }
+
+  setGlobalInputHandler(handler) {
+    this.globalInputHandler = handler;
   }
 
   onConnect() {
@@ -297,7 +307,16 @@ Starting your Homie device should be done using homie-node CLI using this comman
           property.setter &&
           typeof property.setter === "function"
         ) {
-          property.setter(range, message);
+          const globalLevel =
+            this.globalInputHandler &&
+            this.globalInputHandler(node, property, range, message);
+
+          const nodeLevel =
+            !globalLevel &&
+            node.propertyHandler &&
+            node.propertyHandler(property, range, message);
+
+          !nodeLevel && property.setter(range, message);
         }
       }
     }

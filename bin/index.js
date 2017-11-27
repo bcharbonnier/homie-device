@@ -52,7 +52,8 @@ const ID_SCHEMA = {
     device_id: {
       description: "Id of your device",
       type: "string",
-      default: DEFAULT_CONFIG.device_id
+      default: DEFAULT_CONFIG.device_id,
+      pattern: /^[a-z0-9][a-z0-9\-]*$/
     },
     name: {
       description: "Friendly name of your device",
@@ -206,7 +207,7 @@ program
           `${chalk.red("Configuration file has been detected.")}
 To create a new one and remove the existing one please use
 
-    homie-node config --force-reset
+    homie-device config --force-reset
         `
         );
         process.exit(1);
@@ -252,7 +253,7 @@ To create a new one and remove the existing one please use
                 "You can now start your device with this command"
               )}
 
-    homie-node start
+    homie-device start
               `
             );
           });

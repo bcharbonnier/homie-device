@@ -7,11 +7,12 @@
   },
   "main": "src/index.js",
   "bin": {
-    "homie-node": "./bin/index.js"
+    "homie-device": "./bin/index.js"
   },
   "dependencies": {
     "chalk": "2.3.0",
     "commander": "2.11.0",
+    "jest": "^21.2.1",
     "mqtt": "2.14.0",
     "prompt": "1.0.0"
   },
@@ -19,7 +20,7 @@
     "eslint": "4.11.0"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "author": "Benoit Charbonnier <benoit.charbonnier@gmail.com>",
   "license": "MIT"

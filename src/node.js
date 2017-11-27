@@ -2,7 +2,7 @@ const { EventEmitter } = require("events");
 const { HomieProperty } = require("./property");
 
 exports.HomieNode = class HomieNode extends EventEmitter {
-  constructor(device, name, type) {
+  constructor(device, name, type, propertyHandler) {
     super();
 
     /** Parent Homie device */
@@ -13,6 +13,9 @@ exports.HomieNode = class HomieNode extends EventEmitter {
 
     /** Type of the node */
     this.type = type;
+
+    /** Node input handler */
+    this.propertyHandler = propertyHandler;
 
     this.properties = {};
   }
@@ -55,6 +58,7 @@ exports.HomieNode = class HomieNode extends EventEmitter {
     this.emit("disconnected");
   }
 
+  /** Retrieve the given property */
   setProperty(propertyName) {
     return this.properties[propertyName];
   }

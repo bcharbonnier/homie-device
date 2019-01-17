@@ -1,4 +1,5 @@
 const path = require("path");
+
 const { HomieDevice, RUNNING_MODE } = require("./device");
 
 const CWD = process.cwd();

@@ -53,7 +53,7 @@ const ID_SCHEMA = {
       description: "Id of your device",
       type: "string",
       default: DEFAULT_CONFIG.device_id,
-      pattern: /^[a-z0-9][a-z0-9\-]*$/
+      pattern: /^[a-z0-9][a-z0-9-]*$/
     },
     name: {
       description: "Friendly name of your device",
@@ -99,7 +99,7 @@ const MQTT_SCHEMA = {
     base_topic: {
       description: "MQTT base topic",
       type: "string",
-      pattern: /^[a-z\-]+$/,
+      pattern: /^[a-z-]+$/,
       default: DEFAULT_CONFIG.mqtt.base_topic
     }
   }
@@ -177,15 +177,15 @@ program
 
     function handler({ action }) {
       switch (action) {
-        case "reset":
-          child.kill();
-          child = start(handler);
-          break;
-        case "stop":
-          child.kill();
-          break;
-        default:
-          break;
+      case "reset":
+        child.kill();
+        child = start(handler);
+        break;
+      case "stop":
+        child.kill();
+        break;
+      default:
+        break;
       }
     }
 
@@ -221,9 +221,9 @@ To create a new one and remove the existing one please use
     // Main goal here is to have a hook on live Settings
     require(path.join(CWD, "index.js"));
 
-    // Getting our CLI wrapper which is used require(within user 'device'
-    // module. Goal is to read settings require(it
-    const { Homie } = require("../lib");
+    // Getting our CLI wrapper which is used from within user 'device'
+    // module. Goal is to read settings from it
+    const { Homie } = require("..");
 
     console.log(chalk.cyan("Take some to configure your Homie device"));
 
@@ -253,7 +253,7 @@ To create a new one and remove the existing one please use
                 "You can now start your device with this command"
               )}
 
-    homie-device start
+    npx homie-device start
               `
             );
           });

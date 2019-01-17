@@ -64,11 +64,21 @@ exports.HomieDevice = class HomieDevice extends EventEmitter {
     this.onDisconnect = this.onDisconnect.bind(this);
     this.onMessage = this.onMessage.bind(this);
     this.onStats = this.onStats.bind(this);
+
+    this.log.error = (error) => {
+      const prefix = `[${this.config.device_id}]`;
+      // eslint-disable-next-line no-console
+      console.error(
+        `${chalk.red(new Date().toISOString())} ${chalk.red(
+          prefix
+        )} ${error}`
+      );
+    };
   }
 
   node(name, type, handler) {
     if (this.hasStarted) {
-      console.error(
+      this.log.error(
         chalk.red("You must call HomieNode() before Homie.setup()")
       );
       process.exit(1);
@@ -78,7 +88,7 @@ exports.HomieDevice = class HomieDevice extends EventEmitter {
 
   setting(name, description, type) {
     if (this.hasStarted) {
-      console.error(
+      this.log.error(
         chalk.red("You must call HomieSetting() before Homie.setup()")
       );
       process.exit(1);
@@ -93,6 +103,7 @@ exports.HomieDevice = class HomieDevice extends EventEmitter {
 
   log(...messages) {
     const prefix = `[${this.config.device_id}]`;
+    // eslint-disable-next-line no-console
     console.log(
       `${chalk.grey(new Date().toISOString())} ${chalk.cyan(
         prefix
@@ -101,9 +112,9 @@ exports.HomieDevice = class HomieDevice extends EventEmitter {
   }
 
   setup() {
-    // Startup check, that Homie devices should be started require(the CLI
+    // Startup check, that Homie devices should be started from the CLI
     if (!process.env.HOMIE_RUNNING_MODE) {
-      console.error(`
+      this.log.error(`
 Starting your Homie device should be done using homie-node CLI using this command
 
   npx homie-node start
@@ -122,6 +133,8 @@ Starting your Homie device should be done using homie-node CLI using this comman
       });
 
       const options = {
+        clientId: this.name,
+        connectTimeout: 10 * 1000,
         will: {
           topic: `${this.topic}/$online`,
           payload: "false",
@@ -144,29 +157,30 @@ Starting your Homie device should be done using homie-node CLI using this comman
       this.mqttClient.on("connect", this.onConnect);
       this.mqttClient.on("close", this.onDisconnect);
       this.mqttClient.on("message", this.onMessage);
+      this.mqttClient.on("error", error => this.log.error(error));
 
       this.mqttClient.subscribe(`${this.topic}/#`);
       this.mqttClient.subscribe(`${this.config.mqtt.base_topic}/$broadcast/#`);
 
       this.hasStarted = true;
       this.log(`Starting Homie device ${LOCAL_IP}, with PID ${process.pid}`);
-      this.log(`Connected to MQTT broker on ${mqttServer}`);
+      this.log(`Connecting to MQTT broker on ${mqttServer}`);
     } else {
       if (!Object.values(RUNNING_MODE).includes(this.runningMode)) {
-        console.error(chalk.red(`Unknown running mode ${this.runningMode}`));
+        this.log.error(chalk.red(`Unknown running mode ${this.runningMode}`));
         process.exit(1);
       }
     }
   }
 
   tearDown() {
-    this.log(`Shutting down Homie device`);
+    this.log("Shutting down Homie device");
     this.mqttClient.publish(`${this.topic}/$online`, "false");
     this.mqttClient.end();
   }
 
   reset() {
-    this.log(`Reset command. Restarting device now...`);
+    this.log("Reset command. Restarting device now...");
     process.send({ action: "reset" });
   }
 
@@ -272,7 +286,7 @@ Starting your Homie device should be done using homie-node CLI using this comman
   }
 
   onMessage(topic, message) {
-    const [baseTopic, deviceId, ...deviceTopic] = topic.split("/");
+    const [/* baseTopic */, deviceId, ...deviceTopic] = topic.split("/");
 
     if (deviceId === "$broadcast") {
       this.emit("broadcast", deviceTopic, message);
